@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import Providers from "@/components/Providers";
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -28,7 +29,7 @@ export default function RootLayout({
       lang="en"
     >
       <body className="min-h-full flex flex-col bg-slate-950 text-white antialiased">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
