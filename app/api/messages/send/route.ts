@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/auth";
 import prismadb from "@/app/lib/prismadb";
+import { pusherServer } from "@/app/lib/pusher";
+import { getConversationChannel } from "@/app/lib/utils";
 
 export async function POST(req: Request) {
   let senderId: string | undefined;
@@ -18,11 +20,11 @@ export async function POST(req: Request) {
 
     senderId = session.user.id;
 
-    // Parse body từ request
+    // Phân tích body từ request
     const body = await req.json();
     const { message, receiverId } = body;
 
-    // Validate dữ liệu đầu vào
+    // Kiểm tra dữ liệu đầu vào
     if (!message || !receiverId) {
       return NextResponse.json(
         { error: "Thiếu các trường bắt buộc: message và receiverId" },
@@ -30,7 +32,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Kiểm tra message không được rỗng
+    // Kiểm tra tin nhắn không được rỗng
     if (!message.trim()) {
       return NextResponse.json(
         { error: "Tin nhắn không được để trống" },
@@ -38,7 +40,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Tạo message mới trong database
+    // Tạo tin nhắn mới trong database
     const newMessage = await prismadb.message.create({
       data: {
         body: message.trim(),
@@ -63,7 +65,13 @@ export async function POST(req: Request) {
       },
     });
 
-    // Trả về message vừa tạo với status 201 (Created)
+    // Tạo tên kênh cho cuộc trò chuyện
+    const channelName = getConversationChannel(senderId, receiverId);
+
+    // Kích hoạt sự kiện Pusher để gửi tin nhắn real-time
+    await pusherServer.trigger(channelName, "new-message", newMessage);
+
+    // Trả về tin nhắn vừa tạo với status 201 (Created)
     return NextResponse.json(newMessage, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Lỗi máy chủ nội bộ" }, { status: 500 });

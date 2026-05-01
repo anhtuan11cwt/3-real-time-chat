@@ -4,6 +4,8 @@ import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IoSend } from "react-icons/io5";
+import { pusherClient } from "@/app/lib/pusherClient";
+import { getConversationChannel } from "@/app/lib/utils";
 import MessageBubble from "./MessageBubble";
 
 interface ChatWindowProps {
@@ -93,10 +95,10 @@ function ActiveChatWindow({
       }
 
       const data = await response.json();
-      // Ánh xạ phản hồi API (body) sang giao diện component (text)
+      // Chuyển đổi phản hồi API (body) sang giao diện component (text)
       const mappedMessages = data.map((msg: ApiMessage) => ({
         ...msg,
-        text: msg.body, // Map body to text for MessageBubble
+        text: msg.body, // Chuyển body sang text cho MessageBubble
       }));
       setMessages(mappedMessages);
     } catch (error) {
@@ -106,16 +108,55 @@ function ActiveChatWindow({
     }
   }, [selectedUser.id]);
 
-  // Fetch messages when selected user changes
+  // Lấy tin nhắn khi người dùng được chọn thay đổi
   useEffect(() => {
     if (selectedUser?.id && session?.user?.id) {
-      // Use setTimeout to avoid cascading renders
+      // Sử dụng setTimeout để tránh cascading renders
       const timeoutId = setTimeout(() => {
         fetchMessages();
       }, 0);
       return () => clearTimeout(timeoutId);
     }
   }, [selectedUser?.id, session?.user?.id, fetchMessages]);
+
+  // Đăng ký Pusher để nhận tin nhắn real-time
+  useEffect(() => {
+    if (!selectedUser?.id || !session?.user?.id || !pusherClient) return;
+
+    const channelName = getConversationChannel(
+      session.user.id,
+      selectedUser.id,
+    );
+
+    // Đăng ký kênh
+    const channel = pusherClient.subscribe(channelName);
+
+    // Gắn sự kiện new-message
+    channel.bind("new-message", (data: ApiMessage) => {
+      // Chuyển đổi phản hồi API sang định dạng component
+      const mappedMessage = {
+        ...data,
+        text: data.body, // Chuyển body sang text cho MessageBubble
+      };
+
+      // Kiểm tra tin nhắn đã tồn tại chưa để tránh trùng lặp
+      setMessages((prev) => {
+        const exists = prev.some((msg) => msg.id === mappedMessage.id);
+        if (!exists) {
+          return [...prev, mappedMessage];
+        }
+        return prev;
+      });
+    });
+
+    // Hàm dọn dẹp
+    return () => {
+      channel.unbind_all();
+      if (pusherClient) {
+        pusherClient.unsubscribe(channelName);
+      }
+    };
+  }, [selectedUser?.id, session?.user?.id]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -124,18 +165,8 @@ function ActiveChatWindow({
   const handleSendMessage = async () => {
     if (!message.trim() || !session?.user?.id) return;
 
-    const tempMessage: Message = {
-      createdAt: new Date().toISOString(),
-      id: `temp-${Date.now()}`,
-      receiverId: selectedUser.id,
-      senderId: session.user.id,
-      text: message, // Use text instead of body
-    };
-
-    // Add optimistic update
-    setMessages((prev) => [...prev, tempMessage]);
     const messageToSend = message;
-    setMessage("");
+    setMessage(""); // Clear input immediately
 
     try {
       const response = await fetch("/api/messages/send", {
@@ -153,23 +184,11 @@ function ActiveChatWindow({
         throw new Error(`Lỗi khi gửi tin nhắn: ${response.status}`);
       }
 
-      const newMessage = await response.json();
-
-      // Khớp phản hồi API với giao diện component
-      const mappedMessage = {
-        ...newMessage,
-        text: (newMessage as { body: string }).body, // Map body to text for MessageBubble
-      };
-
-      // Replace temp message with real message
-      setMessages((prev) =>
-        prev.map((msg) => (msg.id === tempMessage.id ? mappedMessage : msg)),
-      );
+      // Pusher sẽ tự động xử lý thêm tin nhắn vào UI
+      // thông qua việc gắn sự kiện "new-message"
     } catch (error) {
       console.error("Lỗi khi gửi tin nhắn:", error);
-      // Remove temp message on error
-      setMessages((prev) => prev.filter((msg) => msg.id !== tempMessage.id));
-      setMessage(messageToSend); // Restore message text
+      setMessage(messageToSend); // Restore message text on error
     }
   };
 
