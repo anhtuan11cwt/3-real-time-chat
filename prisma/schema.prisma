@@ -8,3 +8,30 @@ generator client {
 datasource db {
   provider = "mongodb"
 }
+
+model User {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  name         String?
+  email        String    @unique
+  password     String
+  bio          String?
+  profileImage String?
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+}
+
+model Message {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  body       String
+  createdAt  DateTime @default(now())
+
+  senderId   String   @db.ObjectId
+  receiverId String   @db.ObjectId
+
+  sender   User @relation("SentMessages", fields: [senderId], references: [id])
+  receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id])
+}
