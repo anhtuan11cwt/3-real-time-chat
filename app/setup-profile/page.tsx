@@ -1,21 +1,124 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
-import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { AiFillCamera, AiFillMessage } from "react-icons/ai";
 
+interface User {
+  bio: string | null;
+  profileImage: string | null;
+}
+
 export default function SetupProfilePage() {
+  const router = useRouter();
+  const [userData, setUserData] = useState<User>({ bio: "", profileImage: "" });
   const [avatar, setAvatar] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch("/api/user/me");
+        const data = await res.json();
+
+        if (res.ok) {
+          setUserData({
+            bio: data.bio || "",
+            profileImage: data.profileImage || "",
+          });
+          if (data.profileImage) {
+            setAvatar(data.profileImage);
+          }
+        }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+
+    fetchUser();
+  }, []);
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const imageUrl = URL.createObjectURL(file);
+    const selected = e.target.files?.[0];
+    if (selected) {
+      const imageUrl = URL.createObjectURL(selected);
       setAvatar(imageUrl);
+      setFile(selected);
     }
   };
+
+  const uploadImage = async () => {
+    if (!file) return null;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch("/api/upload", {
+      body: formData,
+      method: "POST",
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Upload thất bại");
+    }
+
+    return data.url;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (loading) return;
+
+    try {
+      setLoading(true);
+
+      let imageUrl = userData.profileImage;
+      if (file) {
+        imageUrl = await uploadImage();
+      }
+
+      const res = await fetch("/api/user/setup-profile", {
+        body: JSON.stringify({
+          bio: userData.bio,
+          profileImage: imageUrl,
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Thiết lập thất bại");
+      }
+
+      router.push("/chat");
+    } catch (error: unknown) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : "Có lỗi xảy ra");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (initialLoading) {
+    return (
+      <div className="min-h-dvh flex justify-center items-center">
+        <div className="text-gray-400">Đang tải...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-dvh flex justify-center items-center px-4">
@@ -65,34 +168,27 @@ export default function SetupProfilePage() {
             />
           </div>
 
-          <form className="space-y-3">
-            <input
-              className="w-full px-4 py-3 bg-inputBg rounded-lg outline-none text-gray-100 placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500 transition"
-              placeholder="Họ và tên"
-              type="text"
-            />
-
+          <form className="space-y-3" onSubmit={handleSubmit}>
             <textarea
               className="w-full px-4 py-3 bg-inputBg rounded-lg outline-none text-gray-100 placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500 transition resize-none"
+              onChange={(e) =>
+                setUserData({ ...userData, bio: e.target.value })
+              }
               placeholder="Giới thiệu ngắn về bản thân..."
               rows={3}
+              value={userData.bio || ""}
             />
 
             <button
               className="w-full py-3 rounded-lg text-white font-medium
                          bg-gradient-to-r from-indigo-500 to-purple-600
                          hover:from-indigo-600 hover:to-purple-700
-                         transition-all duration-200"
+                         transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading}
               type="submit"
             >
-              Tiếp tục
+              {loading ? "Đang xử lý..." : "Tiếp tục"}
             </button>
-
-            <p className="text-center text-sm text-gray-400">
-              <Link className="text-indigo-500 hover:underline" href="/">
-                Bỏ qua
-              </Link>
-            </p>
           </form>
         </div>
       </div>

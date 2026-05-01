@@ -3,6 +3,7 @@
 import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { useState } from "react";
 import { AiFillMessage } from "react-icons/ai";
 
@@ -53,6 +54,13 @@ export default function SignUpPage() {
         setError(data.error || "Đăng ký thất bại");
         return;
       }
+
+      // Tự đăng nhập sau khi đăng ký thành công
+      await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
 
       router.push("/setup-profile");
     } catch {
