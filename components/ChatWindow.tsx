@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { IoSend } from "react-icons/io5";
 import MessageBubble from "./MessageBubble";
 
@@ -14,10 +15,38 @@ interface ChatWindowProps {
   } | null;
 }
 
-interface Message {
-  createdAt: Date;
+interface ApiMessage {
+  body: string;
+  createdAt: string;
   id: string;
+  receiver?: {
+    id: string;
+    name: string | null;
+    profileImage: string | null;
+  };
   receiverId: string;
+  sender?: {
+    id: string;
+    name: string | null;
+    profileImage: string | null;
+  };
+  senderId: string;
+}
+
+interface Message {
+  createdAt: string;
+  id: string;
+  receiver?: {
+    id: string;
+    name: string | null;
+    profileImage: string | null;
+  };
+  receiverId: string;
+  sender?: {
+    id: string;
+    name: string | null;
+    profileImage: string | null;
+  };
   senderId: string;
   text: string;
 }
@@ -25,9 +54,9 @@ interface Message {
 export default function ChatWindow({ selectedUser }: ChatWindowProps) {
   if (!selectedUser) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-slate-950">
-        <div className="text-center text-gray-500">
-          <p className="text-xl mb-2">👋</p>
+      <div className="flex flex-1 justify-center items-center bg-slate-950">
+        <div className="text-gray-500 text-center">
+          <p className="mb-2 text-xl">👋</p>
           <p>Chọn một người dùng để bắt đầu chat</p>
         </div>
       </div>
@@ -49,25 +78,99 @@ function ActiveChatWindow({
 }) {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { data: session } = useSession();
+
+  const fetchMessages = useCallback(async () => {
+    try {
+      setLoading(true);
+
+      const response = await fetch(`/api/messages/${selectedUser.id}`);
+
+      if (!response.ok) {
+        throw new Error(`Lỗi khi lấy tin nhắn: ${response.status}`);
+      }
+
+      const data = await response.json();
+      // Ánh xạ phản hồi API (body) sang giao diện component (text)
+      const mappedMessages = data.map((msg: ApiMessage) => ({
+        ...msg,
+        text: msg.body, // Map body to text for MessageBubble
+      }));
+      setMessages(mappedMessages);
+    } catch (error) {
+      console.error("Lỗi khi lấy tin nhắn:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedUser.id]);
+
+  // Fetch messages when selected user changes
+  useEffect(() => {
+    if (selectedUser?.id && session?.user?.id) {
+      // Use setTimeout to avoid cascading renders
+      const timeoutId = setTimeout(() => {
+        fetchMessages();
+      }, 0);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [selectedUser?.id, session?.user?.id, fetchMessages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  });
+  }, []);
 
-  const handleSendMessage = () => {
-    if (!message.trim()) return;
+  const handleSendMessage = async () => {
+    if (!message.trim() || !session?.user?.id) return;
 
-    const newMessage: Message = {
-      createdAt: new Date(),
-      id: Date.now().toString(),
+    const tempMessage: Message = {
+      createdAt: new Date().toISOString(),
+      id: `temp-${Date.now()}`,
       receiverId: selectedUser.id,
-      senderId: "current-user",
-      text: message,
+      senderId: session.user.id,
+      text: message, // Use text instead of body
     };
 
-    setMessages((prev) => [...prev, newMessage]);
+    // Add optimistic update
+    setMessages((prev) => [...prev, tempMessage]);
+    const messageToSend = message;
     setMessage("");
+
+    try {
+      const response = await fetch("/api/messages/send", {
+        body: JSON.stringify({
+          message: messageToSend,
+          receiverId: selectedUser.id,
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Lỗi khi gửi tin nhắn: ${response.status}`);
+      }
+
+      const newMessage = await response.json();
+
+      // Khớp phản hồi API với giao diện component
+      const mappedMessage = {
+        ...newMessage,
+        text: (newMessage as { body: string }).body, // Map body to text for MessageBubble
+      };
+
+      // Replace temp message with real message
+      setMessages((prev) =>
+        prev.map((msg) => (msg.id === tempMessage.id ? mappedMessage : msg)),
+      );
+    } catch (error) {
+      console.error("Lỗi khi gửi tin nhắn:", error);
+      // Remove temp message on error
+      setMessages((prev) => prev.filter((msg) => msg.id !== tempMessage.id));
+      setMessage(messageToSend); // Restore message text
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -78,50 +181,56 @@ function ActiveChatWindow({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-950">
+    <div className="flex flex-col flex-1 bg-slate-950 h-full">
       {/* HEADER */}
-      <div className="p-4 border-b border-slate-800 flex items-center gap-3">
+      <div className="flex items-center gap-3 p-4 border-slate-800 border-b">
         {selectedUser.profileImage ? (
           <Image
             alt={selectedUser.name || selectedUser.email}
-            className="w-10 h-10 rounded-full object-cover"
+            className="rounded-full w-10 h-10 object-cover"
             height={40}
             src={selectedUser.profileImage}
             width={40}
           />
         ) : (
-          <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-white font-medium">
+          <div className="flex justify-center items-center bg-slate-700 rounded-full w-10 h-10 font-medium text-white">
             {selectedUser.name?.[0]?.toUpperCase() ||
               selectedUser.email[0].toUpperCase()}
           </div>
         )}
         <div>
-          <span className="text-white font-medium block">
+          <span className="block font-medium text-white">
             {selectedUser.name || selectedUser.email}
           </span>
-          <span className="text-xs text-green-500 flex items-center gap-1">
-            <span className="w-2 h-2 bg-green-500 rounded-full inline-block" />
+          <span className="flex items-center gap-1 text-green-500 text-xs">
+            <span className="inline-block bg-green-500 rounded-full w-2 h-2" />
             Trực tuyến
           </span>
         </div>
       </div>
 
       {/* MESSAGES */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-2">
-        {messages.map((msg) => (
-          <MessageBubble
-            isOwnMessage={msg.senderId === "current-user"}
-            key={msg.id}
-            message={msg}
-          />
-        ))}
+      <div className="flex-1 space-y-2 p-4 overflow-y-auto">
+        {loading ? (
+          <div className="text-gray-500 text-center">
+            <p>Đang tải tin nhắn...</p>
+          </div>
+        ) : (
+          messages.map((msg) => (
+            <MessageBubble
+              isOwnMessage={msg.senderId === session?.user?.id}
+              key={msg.id}
+              message={msg}
+            />
+          ))
+        )}
         <div ref={messagesEndRef} />
       </div>
 
       {/* INPUT */}
-      <div className="p-4 border-t border-slate-800 flex items-center gap-2">
+      <div className="flex items-center gap-2 p-4 border-slate-800 border-t">
         <input
-          className="flex-1 bg-slate-800 text-white px-4 py-2 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+          className="flex-1 bg-slate-800 px-4 py-2 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-white"
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Nhập tin nhắn..."
@@ -129,7 +238,7 @@ function ActiveChatWindow({
           value={message}
         />
         <button
-          className="px-4 py-2 bg-indigo-600 rounded-lg text-white hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 px-4 py-2 rounded-lg text-white transition-colors disabled:cursor-not-allowed"
           disabled={!message.trim()}
           onClick={handleSendMessage}
           type="button"
