@@ -15,6 +15,7 @@ export const pusherClient = (() => {
     window.pusherClient = new PusherClient(
       process.env.NEXT_PUBLIC_PUSHER_KEY || "",
       {
+        authEndpoint: "/api/pusher/auth",
         cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "",
       },
     );

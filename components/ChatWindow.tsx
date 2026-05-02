@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IoSend } from "react-icons/io5";
+import { useOnlineUsers } from "@/app/hooks/useOnlineUsers";
 import { pusherClient } from "@/app/lib/pusherClient";
 import { getConversationChannel } from "@/app/lib/utils";
 import MessageBubble from "./MessageBubble";
@@ -83,6 +84,9 @@ function ActiveChatWindow({
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { data: session } = useSession();
+  const onlineUsers = useOnlineUsers();
+
+  const isUserOnline = onlineUsers.includes(selectedUser.id);
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -188,7 +192,7 @@ function ActiveChatWindow({
       // thông qua việc gắn sự kiện "new-message"
     } catch (error) {
       console.error("Lỗi khi gửi tin nhắn:", error);
-      setMessage(messageToSend); // Restore message text on error
+      setMessage(messageToSend); // Khôi phục tin nhắn khi có lỗi
     }
   };
 
@@ -221,9 +225,13 @@ function ActiveChatWindow({
           <span className="block font-medium text-white">
             {selectedUser.name || selectedUser.email}
           </span>
-          <span className="flex items-center gap-1 text-green-500 text-xs">
-            <span className="inline-block bg-green-500 rounded-full w-2 h-2" />
-            Trực tuyến
+          <span
+            className={`flex items-center gap-1 text-xs ${isUserOnline ? "text-green-500" : "text-gray-500"}`}
+          >
+            <span
+              className={`inline-block rounded-full w-2 h-2 ${isUserOnline ? "bg-green-500" : "bg-gray-500"}`}
+            />
+            {isUserOnline ? "Trực tuyến" : "Ngoại tuyến"}
           </span>
         </div>
       </div>

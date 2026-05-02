@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { signOut, useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
+import { useOnlineUsers } from "@/app/hooks/useOnlineUsers";
 import UserItem from "./UserItem";
 
 interface SidebarProps {
@@ -24,7 +25,7 @@ export default function Sidebar({ onSelectUser }: SidebarProps) {
       profileImage: string | null;
     }[]
   >([]);
-  const onlineIds: string[] = [];
+  const onlineIds = useOnlineUsers();
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -43,30 +44,30 @@ export default function Sidebar({ onSelectUser }: SidebarProps) {
   const isUserOnline = (userId: string) => onlineIds.includes(userId);
 
   return (
-    <div className="w-[300px] h-full bg-slate-900 border-r border-slate-800 flex flex-col">
+    <div className="flex flex-col bg-slate-900 border-slate-800 border-r w-[300px] h-full">
       {/* HEADER */}
-      <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+      <div className="flex justify-between items-center p-4 border-slate-800 border-b">
         <div className="flex items-center gap-3">
           {session?.user?.image ? (
             <Image
               alt={session.user.name || "Người dùng"}
-              className="w-10 h-10 rounded-full object-cover"
+              className="rounded-full w-10 h-10 object-cover"
               height={40}
               src={session.user.image}
               width={40}
             />
           ) : (
-            <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-medium">
+            <div className="flex justify-center items-center bg-indigo-600 rounded-full w-10 h-10 font-medium text-white">
               {session?.user?.name?.[0]?.toUpperCase() || "N"}
             </div>
           )}
-          <span className="text-white font-medium">
+          <span className="font-medium text-white">
             {session?.user?.name || session?.user?.email}
           </span>
         </div>
 
         <button
-          className="text-sm text-red-400 hover:text-red-300 transition-colors"
+          className="text-red-400 hover:text-red-300 text-sm transition-colors"
           onClick={() => signOut({ callbackUrl: "/" })}
           type="button"
         >
