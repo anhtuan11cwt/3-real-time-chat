@@ -165,7 +165,9 @@ function ActiveChatWindow({
   // Auto-scroll khi messages thay đổi (tin nhắn mới đến hoặc gửi đi)
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, []);
+    // Sử dụng messages để tránh eslint warning
+    void messages;
+  }, [messages]);
 
   // Auto-scroll khi load tin nhắn xong
   useEffect(() => {
