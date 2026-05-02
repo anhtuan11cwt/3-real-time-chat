@@ -162,9 +162,17 @@ function ActiveChatWindow({
     };
   }, [selectedUser?.id, session?.user?.id]);
 
+  // Auto-scroll khi messages thay đổi (tin nhắn mới đến hoặc gửi đi)
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
+
+  // Auto-scroll khi load tin nhắn xong
+  useEffect(() => {
+    if (!loading) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+    }
+  }, [loading]);
 
   const handleSendMessage = async () => {
     if (!message.trim() || !session?.user?.id) return;
