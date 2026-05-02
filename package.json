@@ -28,7 +28,7 @@
   "name": "real-time-chat",
   "private": true,
   "scripts": {
-    "build": "next build",
+    "build": "prisma generate && next build",
     "check": "biome check --write",
     "check2": "biome check --write --unsafe",
     "dev": "next dev",
