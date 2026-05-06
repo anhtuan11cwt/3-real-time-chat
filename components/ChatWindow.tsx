@@ -105,8 +105,8 @@ function ActiveChatWindow({
         text: msg.body, // Chuyển body sang text cho MessageBubble
       }));
       setMessages(mappedMessages);
-    } catch (error) {
-      console.error("Lỗi khi lấy tin nhắn:", error);
+    } catch {
+      // Xử lý lỗi
     } finally {
       setLoading(false);
     }
@@ -200,8 +200,7 @@ function ActiveChatWindow({
 
       // Pusher sẽ tự động xử lý thêm tin nhắn vào UI
       // thông qua việc gắn sự kiện "new-message"
-    } catch (error) {
-      console.error("Lỗi khi gửi tin nhắn:", error);
+    } catch {
       setMessage(messageToSend); // Khôi phục tin nhắn khi có lỗi
     }
   };

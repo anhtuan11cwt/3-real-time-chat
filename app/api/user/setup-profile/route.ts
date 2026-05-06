@@ -31,9 +31,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(user);
-  } catch (error) {
-    console.error("SETUP_PROFILE_ERROR:", error);
-
+  } catch {
     return NextResponse.json({ error: "Lỗi máy chủ nội bộ" }, { status: 500 });
   }
 }

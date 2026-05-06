@@ -34,8 +34,8 @@ export default function SetupProfilePage() {
             setAvatar(data.profileImage);
           }
         }
-      } catch (error) {
-        console.error(error);
+      } catch {
+        // Xử lý lỗi
       } finally {
         setInitialLoading(false);
       }
@@ -104,8 +104,7 @@ export default function SetupProfilePage() {
       }
 
       router.push("/chat");
-    } catch (error: unknown) {
-      console.error(error);
+    } catch (error) {
       alert(error instanceof Error ? error.message : "Có lỗi xảy ra");
     } finally {
       setLoading(false);
@@ -134,7 +133,7 @@ export default function SetupProfilePage() {
         <div className="py-10 px-6 rounded-xl shadow-lg bg-[#0f172a] border border-gray-800">
           <div className="flex justify-center mb-6">
             <button
-              aria-label="Chon anh dai dien"
+              aria-label="Chọn ảnh đại diện"
               className="w-24 h-24 rounded-full bg-inputBg overflow-hidden cursor-pointer flex items-center justify-center border-2 border-gray-700 hover:border-indigo-500 transition group relative"
               onClick={() => fileInputRef.current?.click()}
               type="button"

@@ -38,8 +38,7 @@ export async function POST(req: Request) {
     );
 
     return NextResponse.json(authResponse);
-  } catch (error) {
-    console.log("Lỗi xác thực Pusher:", error);
+  } catch {
     return NextResponse.json({ error: "Lỗi máy chủ nội bộ" }, { status: 500 });
   }
 }

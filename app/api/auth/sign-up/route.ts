@@ -63,9 +63,7 @@ export async function POST(request: Request) {
     return NextResponse.json(user, {
       status: 201,
     });
-  } catch (error) {
-    console.error("[SIGN_UP_ERROR]", error);
-
+  } catch {
     return NextResponse.json({ error: "Lỗi máy chủ nội bộ" }, { status: 500 });
   }
 }

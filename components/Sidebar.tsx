@@ -33,8 +33,8 @@ export default function Sidebar({ onSelectUser }: SidebarProps) {
         const res = await fetch("/api/users");
         const data = await res.json();
         setUsers(data);
-      } catch (error) {
-        console.error("Lỗi khi tải danh sách người dùng:", error);
+      } catch {
+        // Xử lý lỗi
       }
     };
 

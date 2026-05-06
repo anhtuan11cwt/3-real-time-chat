@@ -49,9 +49,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       url: uploadRes.secure_url,
     });
-  } catch (error) {
-    console.error("UPLOAD_ERROR:", error);
-
+  } catch {
     return NextResponse.json({ error: "Upload thất bại" }, { status: 500 });
   }
 }

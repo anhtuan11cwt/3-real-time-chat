@@ -35,9 +35,7 @@ export async function GET() {
     }
 
     return NextResponse.json(user);
-  } catch (error) {
-    console.error("GET_USER_ERROR:", error);
-
+  } catch {
     return NextResponse.json({ error: "Lỗi máy chủ nội bộ" }, { status: 500 });
   }
 }
